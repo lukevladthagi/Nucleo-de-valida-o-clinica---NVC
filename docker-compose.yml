@@ -8,6 +8,8 @@ services:
         NEXT_PUBLIC_PROJECT_GROUP_ID: ${NEXT_PUBLIC_PROJECT_GROUP_ID}
     container_name: nvc
     restart: unless-stopped
+    extra_hosts:
+      - "rede.hospitalprontocardio.com.br:192.168.4.38"
     ports:
       - "4003:4003"
     environment:
