@@ -1,68 +1,181 @@
-```bash
-(cd apps/web && yarn dev) & (cd apps/mobile && EAS_NO_VCS=1 EAS_PROJECT_ROOT=. EXPO_NO_METRO_LAZY=1 EXPO_UNSTABLE_TREE_SHAKING=1 EXPO_UNSTABLE_METRO_OPTIMIZE_GRAPH=1 yarn dlx expo start --offline --web)
+# NVC - Núcleo de Validação Clínica
+
+Sistema web para solicitação, validação e acompanhamento de pré-internações clínicas do Hospital Prontocardio.
+
+O NVC centraliza o formulário de pré-internação, consulta dados do MVSOUL, envia solicitações para médicos validadores via Telegram e registra o retorno da aprovação para enfermagem e médico solicitante.
+
+## Objetivo
+
+O projeto foi criado para organizar o fluxo de validação clínica antes da internação hospitalar, reduzindo retrabalho, melhorando rastreabilidade e acelerando a comunicação entre médico solicitante, validadores e enfermagem.
+
+## Fluxo Principal
+
+1. O médico solicitante acessa o formulário protegido por código.
+2. Informa o atendimento MVSOUL e preenche os dados clínicos da solicitação.
+3. O sistema pode buscar dados do paciente no MVSOUL, conforme configuração.
+4. A solicitação é registrada no banco de dados.
+5. Os médicos validadores recebem notificação pelo Telegram.
+6. Cada validador acessa o link de validação e aprova ou recusa a solicitação.
+7. A decisão fica registrada no sistema.
+8. Em caso de aprovação, enfermagem e médico solicitante podem ser notificados.
+
+## Funcionalidades
+
+- Formulário de solicitação de pré-internação.
+- Proteção do formulário por código de acesso.
+- Consulta de atendimento e paciente via MVSOUL.
+- Gestão de solicitações.
+- Fila de validação médica.
+- Página individual de validação por protocolo.
+- Cadastro de médicos validadores.
+- Cadastro de enfermagem.
+- Cadastro de médicos solicitantes.
+- Configuração de SLA por prioridade.
+- Configurações de integração com MVSOUL.
+- Configurações de Telegram.
+- Histórico de notificações e auditoria.
+- Dashboard e indicadores operacionais.
+
+## Tecnologias
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- Better Auth
+- Neon PostgreSQL
+- Telegram Bot API
+- Integração REST com MVSOUL
+- Yarn 4 / Corepack
+
+## Estrutura do Projeto
+
+```text
+apps/web
+  src/app                 Rotas Next.js e APIs
+  src/views               Telas principais do sistema
+  src/components          Componentes reutilizáveis
+  src/app/api             Endpoints internos
+  src/app/api/mvsoul      Integração MVSOUL
+  src/app/api/settings    Configurações do sistema
+
+apps/mobile               Estrutura mobile preservada do export original
+legacy                    Código legado preservado da migração
 ```
 
-# Managing e2b
+## Configuração Local
 
-All of this requires the e2b cli to be installed.
+Crie o arquivo `apps/web/.env.local`:
 
-## Publish bundling checks
-
-CI runs the V2 OpenNext publish bundle check only when files that affect V2
-web publishing are touched, including:
-
-- `packages/e2b-templates/v2/apps/web/**`
-- `packages/e2b-templates/v2/publisher/**`
-- `packages/e2b-templates/v2/package.json`
-- `packages/e2b-templates/v2/yarn.lock`
-- `packages/e2b-templates/tests/v2/**`
-- `packages/published-apps/**`
-- `apps/flux/core/src/services/nextjs-deployment/**`
-
-Run the same check locally with:
-
-```bash
-yarn workspace @createinc/e2b-templates test:v2:publish-bundle
+```env
+DATABASE_URL=postgresql://usuario:senha@host/neondb?sslmode=require
+AUTH_SECRET=gere-uma-chave-segura-com-mais-de-32-caracteres
+BETTER_AUTH_URL=http://localhost:4003
+AUTH_URL=http://localhost:4003
+NEXT_PUBLIC_AUTH_URL=http://localhost:4003
+NEXT_PUBLIC_CREATE_BASE_URL=http://localhost:4003
+NEXT_PUBLIC_CREATE_HOST=localhost:4003
+NEXT_PUBLIC_PROJECT_GROUP_ID=nvc-local
 ```
 
-That builds the V2 Docker image if needed, writes the same
-`open-next.config.ts` used by the publish flow, installs the user app from its
-own workspace manifest, links publisher-owned OpenNext tooling from
-`/opt/anything-publisher`, and runs the publisher OpenNext binary. It catches
-build-time bundling failures such as unresolved Node builtins or missing
-publish-time dependencies before a PR merges.
+Não envie `.env.local` para o Git, pois ele contém credenciais do banco e chaves de autenticação.
 
-The web template intentionally declares `@opentelemetry/api` even though app
-source does not import it directly. Next's server build may resolve it as an
-optional peer while bundling auth/runtime packages for OpenNext publish, so keep
-it installed unless that publish bundle check proves it is no longer needed.
-
-For runtime-import smoke coverage, run:
+## Instalação
 
 ```bash
-RUN_OPENNEXT_RUNTIME_SMOKE=1 yarn workspace @createinc/e2b-templates test:v2:publish-bundle
+corepack yarn install
 ```
 
-The smoke variant imports the built OpenNext server entry after the bundle is
-created. It is intentionally manual/offline because it is slower and more
-sensitive to OpenNext output shape, but it is the thing to run when changing
-`serverExternalPackages`, auth/database dependencies, or OpenNext runtime
-packaging.
+No Windows, este projeto usa `nodeLinker: node-modules` e `nmMode: classic` para evitar erros de hardlink com pacotes do Expo/mobile.
 
-## How to develop on your own template
-### Create your template
-1. Make sure you have auth configured to the devleopment team
-2. NOTE: you will have to stop this command soon after running it. This is the only way I know how to create a template...
-3. Run:
+## Rodar Localmente
+
 ```bash
-e2b template build
+corepack yarn workspace web next dev --port 4003
 ```
-and after about a second, just cancel it This will create an e2b.toml file in the current directory.The only important part of this config is the template_id.
 
-1. Now, move this file to e2b.local.toml. This will ensure it is not committed
-1. Finally, copy the other relevant fileds from the e2b.development.beta.toml file to your e2b.local.toml file.
-1. Set your template_name to something that is specific to you e.g. "create-development-marcus"
-1. Go into launchdarkly (https://app.launchdarkly.com/projects/flux/flags/e2b-monorepo-template/targeting?env=production&env=development&selected-env=development)
-1. Add your template name as a variation, and configure it to be served in whatever environments you want in the development environment.
+Acesse:
 
-NOTE: if you want to test it in production, you will have to create your own template (with a different id) in the production team as well.
+```text
+http://localhost:4003
+```
+
+O código de acesso do formulário fica na tabela `settings`, chave:
+
+```text
+form_access_code
+```
+
+## Build de Produção
+
+```bash
+corepack yarn workspace web build
+```
+
+Para iniciar após build:
+
+```bash
+corepack yarn workspace web start
+```
+
+## Banco de Dados
+
+O sistema utiliza PostgreSQL no Neon. As principais tabelas são:
+
+- `requests`
+- `request_attachments`
+- `validators`
+- `nurses`
+- `requesters`
+- `settings`
+- `notification_log`
+- `telegram_registrations`
+- `user_profiles`
+- tabelas do Better Auth: `user`, `account`, `session`, `verification`
+
+## Configurações Importantes
+
+As integrações são controladas pela tabela `settings`.
+
+Chaves relevantes:
+
+- `form_access_secure`
+- `form_access_code`
+- `telegram_enabled`
+- `telegram_bot_token`
+- `mvsoul_integration_enabled`
+- `mvsoul_api_url`
+- `mvsoul_api_user`
+- `mvsoul_api_password`
+- `mvsoul_auto_sync`
+- `sla_immediate_minutes`
+- `sla_urgent_minutes`
+- `sla_elective_minutes`
+
+## MVSOUL
+
+A integração com MVSOUL consulta dados de atendimento, paciente, evolução e laudos conforme endpoints internos do sistema.
+
+As credenciais ficam em `settings`, não no código-fonte.
+
+## Telegram
+
+O Telegram é usado para notificar médicos validadores e registrar decisões de aprovação/recusa.
+
+Para funcionar em produção, configure:
+
+- token do bot em `telegram_bot_token`;
+- chat IDs dos validadores, enfermagem e solicitantes;
+- URL pública do sistema, para que os links de validação sejam acessíveis pelos médicos.
+
+## Status Atual
+
+- Projeto preparado localmente.
+- Banco conectado.
+- Typecheck executado com sucesso.
+- Build de produção executado com sucesso.
+- Primeiro commit enviado para o repositório GitHub.
+
+## Observações
+
+Este projeto veio de uma exportação/migração do Anything/Mocha. Parte do código legado foi preservada na pasta `legacy` para referência. As rotas principais já estão em Next.js, mas alguns fluxos podem exigir revisão fina durante os testes reais com MVSOUL e Telegram.
