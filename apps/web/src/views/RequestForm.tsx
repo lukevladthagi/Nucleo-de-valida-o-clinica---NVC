@@ -224,6 +224,8 @@ export default function RequestForm() {
           data.nm_prestador_evolucao || data.nm_prestador || prev.attendingPhysician,
         clinicalPresentation: data.ds_evolucao || prev.clinicalPresentation,
         clinicalPresentationDate: data.dt_pre_med || prev.clinicalPresentationDate,
+        vitalSigns: data.vital_signs || data.vitalSigns || prev.vitalSigns,
+        labResults: data.lab_results || data.labResults || prev.labResults,
       }));
 
       setFetchPatientSuccess('Dados do paciente carregados com sucesso!');
@@ -916,9 +918,7 @@ export default function RequestForm() {
       if (!atendimento) return;
 
       try {
-        const response = await fetch(
-          `https://rede.hospitalprontocardio.com.br/api/atend-ndir/${atendimento}`
-        );
+        const response = await fetch(`/api/mvsoul/patient/${atendimento}`);
 
         if (!response.ok) {
           console.error('Failed to fetch patient data from MVSOUL');
@@ -956,10 +956,17 @@ export default function RequestForm() {
         // Update form fields with patient data
         setFormData((prev) => ({
           ...prev,
+          medicalRecordNumber: data.cd_paciente ? String(data.cd_paciente) : prev.medicalRecordNumber,
           patientName: data.nm_paciente || prev.patientName,
           age: age || prev.age,
           sex: sex || prev.sex,
           insurance: data.nm_convenio || prev.insurance,
+          attendingPhysician:
+            data.nm_prestador_evolucao || data.nm_prestador || prev.attendingPhysician,
+          clinicalPresentation: data.ds_evolucao || prev.clinicalPresentation,
+          clinicalPresentationDate: data.dt_pre_med || prev.clinicalPresentationDate,
+          vitalSigns: data.vital_signs || data.vitalSigns || prev.vitalSigns,
+          labResults: data.lab_results || data.labResults || prev.labResults,
         }));
       } catch (error) {
         console.error('Error fetching patient data:', error);

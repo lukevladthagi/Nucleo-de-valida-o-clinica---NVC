@@ -1,5 +1,221 @@
 import { getMvsoulCredentials, getMvsoulToken } from '@/app/api/utils/mvsoul';
 
+const DATE_KEYS = [
+  'dt_resultado',
+  'DT_RESULTADO',
+  'dt_coleta',
+  'DT_COLETA',
+  'dt_laudo',
+  'DT_LAUDO',
+  'dt_sinal_vital',
+  'DT_SINAL_VITAL',
+  'dt_afericao',
+  'DT_AFERICAO',
+  'data',
+  'DATA',
+  'created_at',
+  'CREATED_AT',
+];
+
+function firstValue(record: any, keys: string[]) {
+  for (const key of keys) {
+    const value = record?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  return null;
+}
+
+function normalizeRows(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== 'object') return [];
+
+  const candidates = [
+    payload.results,
+    payload.resultados,
+    payload.data,
+    payload.items,
+    payload.registros,
+    payload.sinais_vitais,
+    payload.exames,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [payload];
+}
+
+function parseDate(value: any) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const brDate = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brDate) {
+    return new Date(`${brDate[3]}-${brDate[2]}-${brDate[1]}T00:00:00`);
+  }
+
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getRecordDate(record: any) {
+  return parseDate(firstValue(record, DATE_KEYS));
+}
+
+function formatDateBR(value: any) {
+  const date = parseDate(value);
+  if (!date) return null;
+  return date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+function latestRowsByDate(rows: any[]) {
+  const datedRows = rows
+    .map((row) => ({ row, date: getRecordDate(row) }))
+    .filter((item): item is { row: any; date: Date } => Boolean(item.date));
+
+  if (datedRows.length === 0) return rows;
+
+  const latestTime = Math.max(...datedRows.map((item) => item.date.getTime()));
+  const latest = datedRows
+    .filter((item) => {
+      const latestDay = new Date(latestTime);
+      return (
+        item.date.getFullYear() === latestDay.getFullYear() &&
+        item.date.getMonth() === latestDay.getMonth() &&
+        item.date.getDate() === latestDay.getDate()
+      );
+    })
+    .map((item) => item.row);
+
+  return latest.length > 0 ? latest : [datedRows.find((item) => item.date.getTime() === latestTime)!.row];
+}
+
+function compact(value: any) {
+  if (value === undefined || value === null) return '';
+  return String(value).replace(/\s+/g, ' ').trim();
+}
+
+function formatLabResults(rows: any[]) {
+  if (rows.length === 0) return null;
+  const latestRows = latestRowsByDate(rows).slice(0, 30);
+  const dateLabel =
+    formatDateBR(firstValue(latestRows[0], DATE_KEYS)) ||
+    new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+  const lines = latestRows
+    .map((row) => {
+      const exam = compact(
+        firstValue(row, ['nm_exame', 'NM_EXAME', 'ds_exame', 'DS_EXAME', 'exame', 'EXAME', 'nome'])
+      );
+      const result = compact(
+        firstValue(row, [
+          'resultado',
+          'RESULTADO',
+          'ds_resultado',
+          'DS_RESULTADO',
+          'vl_resultado',
+          'VL_RESULTADO',
+          'valor',
+          'VALOR',
+        ])
+      );
+      const unit = compact(firstValue(row, ['unidade', 'UNIDADE', 'ds_unidade', 'DS_UNIDADE']));
+
+      if (!exam && !result) return '';
+      return `${exam || 'Resultado'}: ${[result, unit].filter(Boolean).join(' ')}`;
+    })
+    .filter(Boolean);
+
+  if (lines.length === 0) return null;
+  return `${dateLabel}\n${lines.join('\n')}`;
+}
+
+function formatVitalSigns(rows: any[]) {
+  if (rows.length === 0) return null;
+  const latestRows = latestRowsByDate(rows);
+  const latest = latestRows[latestRows.length - 1];
+  const dateLabel =
+    formatDateBR(firstValue(latest, DATE_KEYS)) ||
+    new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+  const signs = [
+    ['Pressão arterial', ['pressao_arterial', 'PRESSAO_ARTERIAL', 'pa', 'PA', 'ds_pressao', 'DS_PRESSAO']],
+    ['Temperatura', ['temperatura', 'TEMPERATURA', 'temp', 'TEMP', 'vl_temperatura', 'VL_TEMPERATURA']],
+    ['Frequência cardíaca', ['frequencia_cardiaca', 'FREQUENCIA_CARDIACA', 'fc', 'FC']],
+    ['Frequência respiratória', ['frequencia_respiratoria', 'FREQUENCIA_RESPIRATORIA', 'fr', 'FR']],
+    ['Saturação O2', ['saturacao', 'SATURACAO', 'sato2', 'SATO2', 'spo2', 'SPO2']],
+    ['Glicemia', ['glicemia', 'GLICEMIA', 'hgt', 'HGT']],
+    ['Dor', ['dor', 'DOR', 'escala_dor', 'ESCALA_DOR']],
+  ];
+
+  const lines = signs
+    .map(([label, keys]) => {
+      const value = compact(firstValue(latest, keys as string[]));
+      return value ? `${label}: ${value}` : '';
+    })
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    const ignored = new Set(DATE_KEYS);
+    for (const [key, value] of Object.entries(latest)) {
+      if (ignored.has(key)) continue;
+      const text = compact(value);
+      if (text && lines.length < 8) lines.push(`${key}: ${text}`);
+    }
+  }
+
+  if (lines.length === 0) return null;
+  return `${dateLabel}\n${lines.join('\n')}`;
+}
+
+async function fetchMvEndpoint(
+  apiUrl: string,
+  accessToken: string,
+  endpoint: string,
+  atendimento: string,
+  cdPaciente: any,
+  diagnosticLog: string[]
+) {
+  const queries = [
+    `atendimento=${encodeURIComponent(atendimento)}`,
+    `cd_atendimento=${encodeURIComponent(atendimento)}`,
+  ];
+
+  if (cdPaciente) {
+    queries.push(`paciente_id=${encodeURIComponent(String(cdPaciente))}`);
+    queries.push(`cd_paciente=${encodeURIComponent(String(cdPaciente))}`);
+  }
+
+  for (const query of queries) {
+    const url = `${apiUrl}api/${endpoint}/?${query}`;
+    try {
+      diagnosticLog.push(`[MV] Buscando ${endpoint}: ${url}`);
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      diagnosticLog.push(`[MV] ${endpoint} respondeu: ${response.status}`);
+      if (!response.ok) continue;
+
+      const payload = await response.json();
+      const rows = normalizeRows(payload);
+      diagnosticLog.push(`[MV] ${endpoint}: ${rows.length} registro(s) normalizado(s)`);
+      if (rows.length > 0) return rows;
+    } catch (error: any) {
+      diagnosticLog.push(`[MV] Erro em ${endpoint}: ${error?.message || 'erro desconhecido'}`);
+    }
+  }
+
+  return [];
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ atendimento: string }> }
@@ -195,6 +411,14 @@ export async function GET(
       console.error('Error fetching evolution:', evolutionError);
     }
 
+    const [labRows, vitalRows] = await Promise.all([
+      fetchMvEndpoint(apiUrl, accessToken, 'resultados-lab', atendimento, cd_paciente, diagnosticLog),
+      fetchMvEndpoint(apiUrl, accessToken, 'sinais-vitais', atendimento, cd_paciente, diagnosticLog),
+    ]);
+
+    const labResultsText = formatLabResults(labRows);
+    const vitalSignsText = formatVitalSigns(vitalRows);
+
     return Response.json({
       ...data,
       nm_prestador_evolucao: firstEvolution?._normalized_doctor || null,
@@ -208,6 +432,10 @@ export async function GET(
         lastEvolution?.dt_pre_med ||
         lastEvolution?.DT_PRE_MED ||
         null,
+      lab_results: labResultsText,
+      labResults: labResultsText,
+      vital_signs: vitalSignsText,
+      vitalSigns: vitalSignsText,
       _diagnostic: diagnosticLog,
     });
   } catch (error: any) {

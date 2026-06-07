@@ -205,6 +205,8 @@ export default function SinglePageRequestForm() {
         attendingPhysician: data.nm_prestador_evolucao || data.nm_prestador || prev.attendingPhysician,
         clinicalPresentation: data.ds_evolucao || prev.clinicalPresentation,
         clinicalPresentationDate: data.dt_pre_med || prev.clinicalPresentationDate,
+        vitalSigns: data.vital_signs || data.vitalSigns || prev.vitalSigns,
+        labResults: data.lab_results || data.labResults || prev.labResults,
       }));
       
       setFetchPatientSuccess("Dados do paciente carregados com sucesso!");
