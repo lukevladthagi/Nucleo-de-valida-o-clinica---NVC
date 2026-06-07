@@ -1,0 +1,14 @@
+# Todo
+- #11: Build administrative filters and advanced metrics
+- #13: Implement audit logging and data export
+- #14: Implement Solicitações page with complete request history
+- #15: Implement Internacoes page for managing approved admissions
+- #16: Implement Usuarios page for user management
+- #17: Implement Convenios page for insurance management
+- #18: Implement Medicos page for physician registry
+- #19: Implement SLA configuration page
+- #20: Implement Criterios configuration page
+- #21: Implement Prioridades configuration page
+- #22: Implement Notificacoes configuration page
+- #23: Implement Indicadores reporting page
+- #24: Implement Auditoria logging page
