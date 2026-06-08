@@ -93,7 +93,9 @@ async function notifyDecision(requestRow: any, decision: string, decisionAt: str
     timestamp: decisionAt,
     botTokenConfigured: Boolean(token),
     groupChatIdConfigured: Boolean(groupChatId),
-    groupSent: null,
+    groupSent: [],
+    validatorsFound: 0,
+    validatorsWithTelegram: 0,
     nursesFound: 0,
     nursesWithTelegram: 0,
     nursesSent: [],
@@ -116,13 +118,37 @@ async function notifyDecision(requestRow: any, decision: string, decisionAt: str
     `<b>Protocolo:</b> ${escapeTelegram(requestRow.protocol)}`,
   ].join('\n');
 
-  if (groupChatId) {
-    diagnostic.groupSent = await sendTelegram(token, groupChatId, groupMessage);
-    if (!diagnostic.groupSent.success) {
-      errors.push(`Grupo: ${diagnostic.groupSent.error || 'falha no envio'}`);
-    }
+  const validators = await sql`
+    SELECT id, name, telegram_chat_id
+    FROM validators
+    WHERE COALESCE(is_active, 0) = 1
+      AND COALESCE(notification_telegram, 0) = 1
+      AND telegram_chat_id IS NOT NULL
+      AND telegram_chat_id <> ''
+    ORDER BY name ASC
+  `;
+  diagnostic.validatorsFound = validators.length;
+  diagnostic.validatorsWithTelegram = validators.length;
+
+  const groupRecipients = new Map<string, { name: string; chat_id: string }>();
+  if (groupChatId) groupRecipients.set(String(groupChatId), { name: 'Grupo configurado', chat_id: String(groupChatId) });
+  for (const validator of validators) {
+    groupRecipients.set(String(validator.telegram_chat_id), {
+      name: validator.name || 'Validador',
+      chat_id: String(validator.telegram_chat_id),
+    });
+  }
+
+  if (groupRecipients.size === 0) {
+    errors.push('Nenhum chat de grupo/validador configurado para receber a solicitação aprovada.');
   } else {
-    errors.push('Chat ID do grupo não configurado em telegram_chat_id.');
+    for (const recipient of groupRecipients.values()) {
+      const result = await sendTelegram(token, recipient.chat_id, groupMessage);
+      diagnostic.groupSent.push({ ...recipient, ...result });
+      if (!result.success) {
+        errors.push(`Grupo/validador ${recipient.name}: ${result.error || 'falha no envio'}`);
+      }
+    }
   }
 
   const recipientMessage = [
