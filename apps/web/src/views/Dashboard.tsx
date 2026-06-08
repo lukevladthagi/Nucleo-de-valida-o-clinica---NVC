@@ -250,6 +250,7 @@ export default function Dashboard() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Prioridade</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Médico</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Validado por</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Data/Hora</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Ações</th>
                   </tr>
@@ -257,7 +258,7 @@ export default function Dashboard() {
                 <tbody className="divide-y divide-gray-200">
                   {recentRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-gray-500">
+                      <td colSpan={10} className="text-center py-8 text-gray-500">
                         Nenhuma solicitação registrada
                       </td>
                     </tr>
@@ -271,6 +272,13 @@ export default function Dashboard() {
                         <td className="py-3 px-4">{getPriorityBadge(request.priority_classification)}</td>
                         <td className="py-3 px-4">{getStatusBadge(request.status)}</td>
                         <td className="py-3 px-4 text-gray-700">{request.requesting_physician}</td>
+                        <td className="py-3 px-4 text-gray-700">
+                          {request.validator_physician ? (
+                            <div className="font-medium text-gray-900">{request.validator_physician}</div>
+                          ) : (
+                            <span className="text-xs text-gray-400">Aguardando validação</span>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-gray-600 text-xs">
                           {new Date(request.created_at).toLocaleString("pt-BR", {
                             day: "2-digit",
