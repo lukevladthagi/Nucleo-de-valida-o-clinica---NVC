@@ -21,11 +21,17 @@ function getBaseUrl(request: NextRequest) {
 }
 
 function escapeTelegram(text: string) {
-  return text.replace(/[&<>]/g, (char) => {
+  return String(text || '').replace(/[&<>]/g, (char) => {
     if (char === '&') return '&amp;';
     if (char === '<') return '&lt;';
     return '&gt;';
   });
+}
+
+function truncateText(text: string, maxLength: number) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3)}...`;
 }
 
 async function getTelegramToken() {
@@ -42,7 +48,7 @@ async function getTelegramToken() {
   return enabled && token ? token : '';
 }
 
-async function notifyValidators(protocol: string, formData: any, baseUrl: string) {
+async function notifyValidators(protocol: string, formData: any, baseUrl: string, slaMinutes: number) {
   const token = await getTelegramToken();
   const diagnostic: any[] = [];
 
@@ -61,17 +67,28 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
   `;
 
   const validationUrl = `${baseUrl}/validacao/${encodeURIComponent(protocol)}`;
+  const approveUrl = `${validationUrl}?decisao=aprovada`;
+  const denyUrl = `${validationUrl}?decisao=negada`;
+  const priority = String(formData.priorityClassification || '').toUpperCase();
+  const clinicalRisk = String(formData.clinicalRisk || '').toLowerCase();
+  const clinicalSummary = truncateText(formData.clinicalPresentation, 2300);
   const message = [
-    '<b>Nova solicitação de pré-internação</b>',
+    `🟡 <b>Nova Solicitação de Pré-Internação — ${escapeTelegram(protocol)}</b>`,
     '',
     `<b>Protocolo:</b> ${escapeTelegram(protocol)}`,
+    `<b>Prontuário:</b> ${escapeTelegram(formData.medicalRecordNumber || '-')}`,
     `<b>Paciente:</b> ${escapeTelegram(formData.patientName)}`,
     `<b>Atendimento MVSOUL:</b> ${escapeTelegram(formData.mvSoulNumber)}`,
     `<b>Convênio:</b> ${escapeTelegram(formData.insurance)}`,
-    `<b>Prioridade:</b> ${escapeTelegram(formData.priorityClassification)}`,
-    `<b>Médico solicitante:</b> ${escapeTelegram(formData.requestingPhysician)} - CRM ${escapeTelegram(formData.crm)}`,
     '',
-    `<a href="${validationUrl}">Abrir validação</a>`,
+    `<b>Prioridade:</b> ${escapeTelegram(priority)}`,
+    `<b>Risco Clínico:</b> ✅ ${escapeTelegram(clinicalRisk)}`,
+    `<b>SLA:</b> ${slaMinutes} minutos`,
+    '',
+    '<b>Resumo Clínico:</b>',
+    escapeTelegram(clinicalSummary || 'Sem resumo clínico informado.'),
+    '',
+    `👉 <a href="${validationUrl}">Clique aqui para avaliar</a>`,
   ].join('\n');
 
   let sent = 0;
@@ -86,6 +103,15 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
           text: message,
           parse_mode: 'HTML',
           disable_web_page_preview: true,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Aprovar', url: approveUrl },
+                { text: '❌ Negar', url: denyUrl },
+              ],
+              [{ text: '🌐 Avaliar no sistema', url: validationUrl }],
+            ],
+          },
         }),
       });
 
@@ -205,7 +231,7 @@ export async function POST(request: NextRequest) {
       RETURNING id
     `;
 
-    const telegram = await notifyValidators(protocol, formData, getBaseUrl(request));
+    const telegram = await notifyValidators(protocol, formData, getBaseUrl(request), slaMinutes);
 
     return NextResponse.json({
       success: true,
