@@ -127,7 +127,7 @@ function filterRowsForPatient(rows: any[], atendimento: string, cdPaciente: any)
     return matchesAtendimento || matchesPaciente;
   });
 
-  return filtered.length > 0 ? filtered : rows;
+  return filtered;
 }
 
 function formatLabResults(rows: any[]) {
