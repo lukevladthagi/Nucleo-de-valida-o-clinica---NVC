@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Lock, Mail, UserPlus } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, Mail, UserPlus } from "lucide-react";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "reset";
 
 function getFriendlyError(message?: string | null) {
   const text = String(message || "").toLowerCase();
@@ -26,11 +26,24 @@ export default function Login() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const isSignup = mode === "signup";
+  const isReset = mode === "reset";
+
+  const changeMode = (nextMode: Mode) => {
+    setMode(nextMode);
+    setError(null);
+    setSuccess(null);
+    setPassword("");
+    setConfirmPassword("");
+    setRecoveryCode("");
+  };
 
   const ensureUserProfile = async () => {
     const response = await fetch("/api/user-profiles", {
@@ -49,12 +62,47 @@ export default function Login() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (password !== confirmPassword) {
+      setError("As senhas não conferem.");
+      return;
+    }
+
+    const response = await fetch("/api/password-reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        password,
+        recoveryCode,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao redefinir senha.");
+    }
+
+    setSuccess("Senha redefinida com sucesso. Você já pode entrar com a nova senha.");
+    setMode("signin");
+    setPassword("");
+    setConfirmPassword("");
+    setRecoveryCode("");
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
+      if (isReset) {
+        await handlePasswordReset();
+        setLoading(false);
+        return;
+      }
+
       if (isSignup) {
         const { error: signUpError } = await authClient.signUp.email({
           email,
@@ -96,7 +144,7 @@ export default function Login() {
           <div className="flex justify-center">
             <img
               src="https://dtvoeevhaseb5.cloudfront.net/uploads/mocha-import/35ca4676-1cfd-4f0a-a77f-097229f6f74d/f362c8ab-33bf-490a-a504-54ce9635b9ae.png"
-              alt="Nucleo de Validacao Clinica"
+              alt="Núcleo de Validação Clínica"
               className="h-20"
             />
           </div>
@@ -106,32 +154,41 @@ export default function Login() {
         </CardHeader>
 
         <CardContent>
-          <div className="mb-5 grid grid-cols-2 rounded-full bg-slate-100 p-1">
+          <div className="mb-5 grid grid-cols-3 rounded-full bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => {
-                setMode("signin");
-                setError(null);
-              }}
+              onClick={() => changeMode("signin")}
               className={`h-10 rounded-full text-sm font-semibold transition ${
-                !isSignup ? "bg-[#0D3473] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                mode === "signin" ? "bg-[#0D3473] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Entrar
             </button>
             <button
               type="button"
-              onClick={() => {
-                setMode("signup");
-                setError(null);
-              }}
+              onClick={() => changeMode("signup")}
               className={`h-10 rounded-full text-sm font-semibold transition ${
                 isSignup ? "bg-[#0D3473] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              Criar usuário
+              Criar
+            </button>
+            <button
+              type="button"
+              onClick={() => changeMode("reset")}
+              className={`h-10 rounded-full text-sm font-semibold transition ${
+                isReset ? "bg-[#0D3473] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Recuperar
             </button>
           </div>
+
+          {isReset && (
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-[#0D3473]">
+              Use o código de recuperação fornecido pela TI para definir uma nova senha.
+            </div>
+          )}
 
           <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
             {isSignup && (
@@ -167,8 +224,25 @@ export default function Login() {
               </div>
             </div>
 
+            {isReset && (
+              <div className="space-y-2">
+                <Label htmlFor="recoveryCode">Código de recuperação</Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    id="recoveryCode"
+                    value={recoveryCode}
+                    onChange={(event) => setRecoveryCode(event.target.value)}
+                    placeholder="Código informado pela TI"
+                    className="h-11 rounded-xl pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">{isReset ? "Nova senha" : "Senha"}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -176,9 +250,9 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Digite sua senha"
+                  placeholder={isReset ? "Digite a nova senha" : "Digite sua senha"}
                   className="h-11 rounded-xl pl-10 pr-10"
-                  minLength={isSignup ? 8 : undefined}
+                  minLength={isSignup || isReset ? 8 : undefined}
                   required
                 />
                 <button
@@ -192,14 +266,48 @@ export default function Login() {
               </div>
             </div>
 
+            {isReset && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Repita a nova senha"
+                  className="h-11 rounded-xl"
+                  minLength={8}
+                  required
+                />
+              </div>
+            )}
+
+            {!isReset && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => changeMode("reset")}
+                  className="text-sm font-semibold text-[#0D3473] hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </div>
             )}
 
+            {success && (
+              <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                {success}
+              </div>
+            )}
+
             <Button type="submit" className="h-12 w-full rounded-xl bg-[#0D3473] text-white hover:bg-[#09285a]" disabled={loading}>
-              {loading ? "Aguarde..." : isSignup ? "Criar usuário" : "Entrar"}
+              {loading ? "Aguarde..." : isReset ? "Redefinir senha" : isSignup ? "Criar usuário" : "Entrar"}
             </Button>
           </form>
         </CardContent>
