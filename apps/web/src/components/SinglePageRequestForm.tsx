@@ -148,7 +148,7 @@ export default function SinglePageRequestForm() {
     setFetchPatientSuccess(null);
     
     try {
-      const response = await fetch(`/api/mvsoul/patient/${atendimento}`);
+      const response = await fetch(`/api/mvsoul/patient/${atendimento}?quick=1`);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -208,6 +208,34 @@ export default function SinglePageRequestForm() {
         vitalSigns: data.vital_signs || data.vitalSigns || prev.vitalSigns,
         labResults: data.lab_results || data.labResults || prev.labResults,
       }));
+
+      if (data.supplementalPending) {
+        setFetchPatientSuccess("Dados principais carregados. Buscando exames e sinais vitais...");
+
+        void fetch(`/api/mvsoul/patient/${atendimento}?scope=supplemental`)
+          .then(async supplementalResponse => {
+            if (!supplementalResponse.ok) {
+              throw new Error("Erro ao buscar exames e sinais vitais");
+            }
+            return supplementalResponse.json();
+          })
+          .then(supplementalData => {
+            setFormData(prev => ({
+              ...prev,
+              vitalSigns: supplementalData.vital_signs || supplementalData.vitalSigns || prev.vitalSigns,
+              labResults: supplementalData.lab_results || supplementalData.labResults || prev.labResults,
+            }));
+            setFetchPatientSuccess("Dados do paciente carregados com sucesso!");
+            setTimeout(() => setFetchPatientSuccess(null), 3000);
+          })
+          .catch(error => {
+            console.warn("Erro ao buscar exames e sinais vitais:", error);
+            setFetchPatientSuccess("Dados principais carregados. Exames e sinais vitais podem ser preenchidos depois.");
+            setTimeout(() => setFetchPatientSuccess(null), 5000);
+          });
+
+        return;
+      }
       
       setFetchPatientSuccess("Dados do paciente carregados com sucesso!");
       setTimeout(() => setFetchPatientSuccess(null), 3000);

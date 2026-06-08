@@ -216,13 +216,28 @@ async function fetchMvEndpoint(
   return [];
 }
 
+async function timedStep<T>(label: string, diagnosticLog: string[], fn: () => Promise<T>) {
+  const start = Date.now();
+  try {
+    const result = await fn();
+    diagnosticLog.push(`[tempo] ${label}: ${Date.now() - start}ms`);
+    return result;
+  } catch (error) {
+    diagnosticLog.push(`[tempo] ${label}: erro em ${Date.now() - start}ms`);
+    throw error;
+  }
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ atendimento: string }> }
 ) {
   const diagnosticLog: string[] = [];
 
   try {
+    const url = new URL(request.url);
+    const quickMode = url.searchParams.get('quick') === '1';
+    const supplementalMode = url.searchParams.get('scope') === 'supplemental';
     const { atendimento } = await params;
     diagnosticLog.push(`[1] Recebido atendimento: ${atendimento}`);
 
@@ -256,7 +271,9 @@ export async function GET(
     diagnosticLog.push(`[6] Tentando autenticação em: ${apiUrl}api/auth/token/`);
     let accessToken: string;
     try {
-      accessToken = await getMvsoulToken(apiUrl, apiUser, apiPassword);
+      accessToken = await timedStep('autenticacao MVSOUL', diagnosticLog, () =>
+        getMvsoulToken(apiUrl, apiUser, apiPassword)
+      );
       diagnosticLog.push('[8] Token recebido: SIM');
     } catch (err: any) {
       diagnosticLog.push(`[8] Erro de autenticação: ${err.message}`);
@@ -278,13 +295,15 @@ export async function GET(
 
     let data: any;
     try {
-      const response = await fetch(patientUrl, {
-        signal: controller.signal,
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await timedStep('dados do paciente', diagnosticLog, () =>
+        fetch(patientUrl, {
+          signal: controller.signal,
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+      );
       clearTimeout(timeoutId);
 
       diagnosticLog.push(`[10] Resposta dos dados: ${response.status} ${response.statusText}`);
@@ -322,6 +341,29 @@ export async function GET(
         );
       }
       throw fetchErr;
+    }
+
+    if (supplementalMode) {
+      const cd_paciente = data.cd_paciente;
+      diagnosticLog.push(`[12] Modo complementar. cd_paciente: ${cd_paciente}`);
+
+      const [labRows, vitalRows] = await timedStep('laboratorio e sinais vitais', diagnosticLog, () =>
+        Promise.all([
+          fetchMvEndpoint(apiUrl, accessToken, 'resultados-lab', atendimento, cd_paciente, diagnosticLog),
+          fetchMvEndpoint(apiUrl, accessToken, 'sinais-vitais', atendimento, cd_paciente, diagnosticLog),
+        ])
+      );
+
+      const labResultsText = formatLabResults(labRows);
+      const vitalSignsText = formatVitalSigns(vitalRows);
+
+      return Response.json({
+        lab_results: labResultsText,
+        labResults: labResultsText,
+        vital_signs: vitalSignsText,
+        vitalSigns: vitalSignsText,
+        _diagnostic: diagnosticLog,
+      });
     }
 
     // Fetch evolutions
@@ -411,10 +453,19 @@ export async function GET(
       console.error('Error fetching evolution:', evolutionError);
     }
 
-    const [labRows, vitalRows] = await Promise.all([
-      fetchMvEndpoint(apiUrl, accessToken, 'resultados-lab', atendimento, cd_paciente, diagnosticLog),
-      fetchMvEndpoint(apiUrl, accessToken, 'sinais-vitais', atendimento, cd_paciente, diagnosticLog),
-    ]);
+    let labRows: any[] = [];
+    let vitalRows: any[] = [];
+
+    if (!quickMode) {
+      [labRows, vitalRows] = await timedStep('laboratorio e sinais vitais', diagnosticLog, () =>
+        Promise.all([
+          fetchMvEndpoint(apiUrl, accessToken, 'resultados-lab', atendimento, cd_paciente, diagnosticLog),
+          fetchMvEndpoint(apiUrl, accessToken, 'sinais-vitais', atendimento, cd_paciente, diagnosticLog),
+        ])
+      );
+    } else {
+      diagnosticLog.push('[MV] Modo rapido: laboratorio e sinais vitais serao carregados em segundo plano.');
+    }
 
     const labResultsText = formatLabResults(labRows);
     const vitalSignsText = formatVitalSigns(vitalRows);
@@ -436,6 +487,7 @@ export async function GET(
       labResults: labResultsText,
       vital_signs: vitalSignsText,
       vitalSigns: vitalSignsText,
+      supplementalPending: quickMode,
       _diagnostic: diagnosticLog,
     });
   } catch (error: any) {

@@ -1,5 +1,14 @@
 import sql from '@/app/api/utils/sql';
 
+const TOKEN_CACHE_TTL_MS = 8 * 60 * 1000;
+let tokenCache:
+  | {
+      key: string;
+      token: string;
+      expiresAt: number;
+    }
+  | null = null;
+
 /**
  * Get MVSOUL API credentials from the settings table.
  */
@@ -29,6 +38,13 @@ export async function getMvsoulToken(
   apiUser: string,
   apiPassword: string
 ): Promise<string> {
+  const cacheKey = `${apiUrl}|${apiUser}`;
+  const now = Date.now();
+
+  if (tokenCache && tokenCache.key === cacheKey && tokenCache.expiresAt > now) {
+    return tokenCache.token;
+  }
+
   const authResponse = await fetch(`${apiUrl}api/auth/token/`, {
     method: 'POST',
     headers: {
@@ -50,6 +66,12 @@ export async function getMvsoulToken(
   if (!authData.access) {
     throw new Error('MVSOUL auth did not return an access token');
   }
+
+  tokenCache = {
+    key: cacheKey,
+    token: authData.access,
+    expiresAt: now + TOKEN_CACHE_TTL_MS,
+  };
 
   return authData.access;
 }
