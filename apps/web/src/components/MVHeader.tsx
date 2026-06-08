@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-shim";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { LogOut, Bell, Settings as SettingsIcon } from "lucide-react";
 import { Link } from "@/lib/router-shim";
@@ -16,29 +17,40 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function MVHeader() {
   const { user, logout } = useAuth();
+  const { profile } = useUserProfile();
+
+  const displayName = profile?.name || user?.name || user?.email?.split("@")[0] || "Usuario";
+  const displayEmail = profile?.email || user?.email || "";
+  const avatarImage = user?.image || user?.google_user_data?.picture || undefined;
+  const initials =
+    displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "U";
 
   const handleLogout = async () => {
     await logout();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   };
 
   return (
     <div className="fixed top-0 left-0 right-0 h-14 bg-[#5A7B9A] text-white shadow-md z-50 flex items-center justify-between px-4">
-      {/* Left: Logo and Hospital */}
       <div className="flex items-center gap-4">
-        <img 
-          src="https://dtvoeevhaseb5.cloudfront.net/uploads/mocha-import/35ca4676-1cfd-4f0a-a77f-097229f6f74d/f362c8ab-33bf-490a-a504-54ce9635b9ae.png" 
-          alt="Núcleo de Validação Clínica"
+        <img
+          src="https://dtvoeevhaseb5.cloudfront.net/uploads/mocha-import/35ca4676-1cfd-4f0a-a77f-097229f6f74d/f362c8ab-33bf-490a-a504-54ce9635b9ae.png"
+          alt="Nucleo de Validacao Clinica"
           className="h-8 object-contain"
         />
-        <div className="h-6 w-px bg-white/30"></div>
-        <div className="text-sm font-medium">
-          HOSPITAL PRONTOCARDIO
-        </div>
+        <div className="h-6 w-px bg-white/30" />
+        <div className="text-sm font-medium">HOSPITAL PRONTOCARDIO</div>
       </div>
 
-      {/* Right: Notifications and User */}
       <div className="flex items-center gap-3">
-        {/* Session Time */}
         <div className="text-xs text-white/80 hidden md:block">
           {new Date().toLocaleString("pt-BR", {
             day: "2-digit",
@@ -49,9 +61,8 @@ export default function MVHeader() {
           })}
         </div>
 
-        <div className="h-6 w-px bg-white/30 hidden md:block"></div>
+        <div className="h-6 w-px bg-white/30 hidden md:block" />
 
-        {/* Notifications */}
         <Button
           variant="ghost"
           size="sm"
@@ -60,7 +71,6 @@ export default function MVHeader() {
           <Bell className="h-4 w-4" />
         </Button>
 
-        {/* Settings */}
         <Link to="/configuracoes">
           <Button
             variant="ghost"
@@ -71,32 +81,27 @@ export default function MVHeader() {
           </Button>
         </Link>
 
-        <div className="h-6 w-px bg-white/30"></div>
+        <div className="h-6 w-px bg-white/30" />
 
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 px-2 text-white hover:bg-white/10">
               <Avatar className="h-7 w-7 mr-2">
-                <AvatarImage src={user?.google_user_data?.picture || undefined} alt={user?.email} />
+                <AvatarImage src={avatarImage} alt={displayName} />
                 <AvatarFallback className="bg-white/20 text-white text-xs">
-                  {user?.email.charAt(0).toUpperCase()}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium hidden md:inline">
-                {user?.google_user_data?.name?.split(" ")[0] || "Usuário"}
+                {displayName.split(" ")[0] || "Usuario"}
               </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user?.google_user_data?.name || "Usuário"}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email}
-                </p>
+                <p className="text-sm font-medium leading-none">{displayName}</p>
+                <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
