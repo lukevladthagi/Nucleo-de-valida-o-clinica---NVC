@@ -34,17 +34,6 @@ async function hashPassword(password: string) {
   return `${salt}:${key.toString("hex")}`;
 }
 
-async function getRecoveryCode() {
-  const rows = await sql`
-    SELECT setting_key, setting_value
-    FROM settings
-    WHERE setting_key IN ('password_reset_code', 'form_access_code')
-  `;
-
-  const map = new Map(rows.map((row: any) => [row.setting_key, row.setting_value]));
-  return String(process.env.PASSWORD_RESET_CODE || map.get("password_reset_code") || map.get("form_access_code") || "");
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -60,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A nova senha precisa ter pelo menos 8 caracteres." }, { status: 400 });
     }
 
-    const configuredCode = await getRecoveryCode();
+    const configuredCode = String(process.env.PASSWORD_RESET_CODE || "").trim();
     if (!configuredCode) {
       return NextResponse.json(
         { error: "Código de recuperação não configurado. Peça para a TI configurar o código de reset." },
