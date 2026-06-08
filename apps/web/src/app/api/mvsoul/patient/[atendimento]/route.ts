@@ -99,6 +99,37 @@ function compact(value: any) {
   return String(value).replace(/\s+/g, ' ').trim();
 }
 
+function filterRowsForPatient(rows: any[], atendimento: string, cdPaciente: any) {
+  const atendimentoText = String(atendimento);
+  const cdPacienteText = cdPaciente ? String(cdPaciente) : '';
+
+  const filtered = rows.filter((row) => {
+    const rowAtendimento = firstValue(row, [
+      'cd_atendimento',
+      'CD_ATENDIMENTO',
+      'atendimento',
+      'ATENDIMENTO',
+      'nr_atendimento',
+      'NR_ATENDIMENTO',
+    ]);
+    const rowPaciente = firstValue(row, [
+      'cd_paciente',
+      'CD_PACIENTE',
+      'paciente_id',
+      'PACIENTE_ID',
+      'id_paciente',
+      'ID_PACIENTE',
+    ]);
+
+    const matchesAtendimento = rowAtendimento && String(rowAtendimento) === atendimentoText;
+    const matchesPaciente = cdPacienteText && rowPaciente && String(rowPaciente) === cdPacienteText;
+
+    return matchesAtendimento || matchesPaciente;
+  });
+
+  return filtered.length > 0 ? filtered : rows;
+}
+
 function formatLabResults(rows: any[]) {
   if (rows.length === 0) return null;
   const latestRows = latestRowsByDate(rows).slice(0, 30);
@@ -205,8 +236,8 @@ async function fetchMvEndpoint(
       if (!response.ok) continue;
 
       const payload = await response.json();
-      const rows = normalizeRows(payload);
-      diagnosticLog.push(`[MV] ${endpoint}: ${rows.length} registro(s) normalizado(s)`);
+      const rows = filterRowsForPatient(normalizeRows(payload), atendimento, cdPaciente);
+      diagnosticLog.push(`[MV] ${endpoint}: ${rows.length} registro(s) normalizado(s)/filtrado(s)`);
       if (rows.length > 0) return rows;
     } catch (error: any) {
       diagnosticLog.push(`[MV] Erro em ${endpoint}: ${error?.message || 'erro desconhecido'}`);
