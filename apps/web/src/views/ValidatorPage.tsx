@@ -25,6 +25,24 @@ import {
   Download,
 } from "lucide-react";
 
+function parseInfectionSigns(value: unknown) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+
+  const text = String(value).trim();
+  if (!text) return [];
+
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return text
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+}
+
 export default function ValidatorPage() {
   const { protocol } = useParams();
   const navigate = useNavigate();
@@ -336,7 +354,7 @@ export default function ValidatorPage() {
   const priorityLabel = priorityLabels[request.priority_classification as keyof typeof priorityLabels] || request.priority_classification;
   const riskLabel = riskLabels[request.clinical_risk as keyof typeof riskLabels] || request.clinical_risk;
 
-  const infectionSigns = request.infection_signs ? JSON.parse(request.infection_signs) : [];
+  const infectionSigns = parseInfectionSigns(request.infection_signs);
 
   // Check if already decided
   const isDecided = request.status !== "aguardando_validacao" && request.decision;
@@ -943,7 +961,7 @@ export default function ValidatorPage() {
                   <div className="space-y-1 text-sm">
                     <p><strong>Protocolo:</strong> {diagnosticData.protocol}</p>
                     <p><strong>Decisão:</strong> {diagnosticData.decision}</p>
-                    <p><strong>Horário:</strong> {new Date(diagnosticData.timestamp).toLocaleString('pt-BR')}</p>
+                    <p><strong>Horário:</strong> {new Date(diagnosticData.timestamp || diagnosticData.decisionAt || Date.now()).toLocaleString('pt-BR')}</p>
                   </div>
                 </div>
 
@@ -964,11 +982,11 @@ export default function ValidatorPage() {
                     <p><strong>Total cadastrados:</strong> {diagnosticData.nursesFound}</p>
                     <p><strong>Com Telegram habilitado:</strong> {diagnosticData.nursesWithTelegram}</p>
                     
-                    {diagnosticData.nursesSent.length > 0 && (
+                    {(diagnosticData.nursesSent || []).length > 0 && (
                       <div className="mt-3">
                         <p className="font-semibold mb-2">Tentativas de envio:</p>
                         <ul className="space-y-1">
-                          {diagnosticData.nursesSent.map((nurse: any, idx: number) => (
+                          {(diagnosticData.nursesSent || []).map((nurse: any, idx: number) => (
                             <li key={idx} className={nurse.success ? 'text-green-700' : 'text-red-700'}>
                               {nurse.success ? '✓' : '✗'} {nurse.name} (chat_id: {nurse.chat_id})
                               {nurse.error && <span className="block ml-4 text-xs">{nurse.error}</span>}
@@ -986,11 +1004,11 @@ export default function ValidatorPage() {
                     <p><strong>Total cadastrados:</strong> {diagnosticData.requestersFound}</p>
                     <p><strong>Com Telegram habilitado:</strong> {diagnosticData.requestersWithTelegram}</p>
                     
-                    {diagnosticData.requestersSent.length > 0 && (
+                    {(diagnosticData.requestersSent || []).length > 0 && (
                       <div className="mt-3">
                         <p className="font-semibold mb-2">Tentativas de envio:</p>
                         <ul className="space-y-1">
-                          {diagnosticData.requestersSent.map((requester: any, idx: number) => (
+                          {(diagnosticData.requestersSent || []).map((requester: any, idx: number) => (
                             <li key={idx} className={requester.success ? 'text-green-700' : 'text-red-700'}>
                               {requester.success ? '✓' : '✗'} {requester.name} (chat_id: {requester.chat_id})
                               {requester.error && <span className="block ml-4 text-xs">{requester.error}</span>}
@@ -1002,11 +1020,11 @@ export default function ValidatorPage() {
                   </div>
                 </div>
 
-                {diagnosticData.errors.length > 0 && (
+                {(diagnosticData.errors || []).length > 0 && (
                   <div className="bg-red-50 p-4 rounded-lg">
                     <h3 className="font-semibold mb-2 text-red-900">Erros Encontrados</h3>
                     <ul className="space-y-1 text-sm text-red-700">
-                      {diagnosticData.errors.map((error: string, idx: number) => (
+                      {(diagnosticData.errors || []).map((error: string, idx: number) => (
                         <li key={idx}>• {error}</li>
                       ))}
                     </ul>
