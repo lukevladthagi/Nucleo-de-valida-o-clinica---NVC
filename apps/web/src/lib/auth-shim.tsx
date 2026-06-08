@@ -58,7 +58,7 @@ export function useAuth() {
   // Mocha's redirectToLogin accepts no args; user code commonly attaches it
   // directly to onClick, so don't tighten the signature.
   const redirectToLogin = () => {
-    if (typeof window !== "undefined") window.location.href = "/account/signin";
+    if (typeof window !== "undefined") window.location.href = "/login";
   };
   return {
     user: toMochaCompatUser(session.data?.user),
