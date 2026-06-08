@@ -212,8 +212,8 @@ async function fetchMvEndpoint(
   diagnosticLog: string[]
 ) {
   const queries = [
-    `atendimento=${encodeURIComponent(atendimento)}`,
     `cd_atendimento=${encodeURIComponent(atendimento)}`,
+    `atendimento=${encodeURIComponent(atendimento)}`,
   ];
 
   if (cdPaciente) {
