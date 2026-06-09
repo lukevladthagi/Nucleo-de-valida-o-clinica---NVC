@@ -15,7 +15,8 @@ COPY . .
 RUN corepack enable \
   && corepack yarn install --immutable \
   && corepack yarn workspace web build \
-  && node scripts/patch-cent-browser-static-blocks.mjs
+  && node scripts/patch-cent-browser-static-blocks.mjs \
+  && node scripts/patch-cent-browser-css.mjs
 
 FROM node:24-alpine AS runner
 
