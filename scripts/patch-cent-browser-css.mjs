@@ -92,6 +92,18 @@ function unwrapLayerBlocks(source) {
   return output;
 }
 
+function unwrapAllLayerBlocks(source) {
+  let current = source;
+
+  while (current.includes('@layer')) {
+    const next = unwrapLayerBlocks(current);
+    if (next === current) break;
+    current = next;
+  }
+
+  return current;
+}
+
 try {
   await access(staticDir);
 } catch {
@@ -104,7 +116,7 @@ let patchedFiles = 0;
 
 for (const file of files) {
   const source = await readFile(file, 'utf8');
-  const patched = unwrapLayerBlocks(source);
+  const patched = unwrapAllLayerBlocks(source);
 
   if (patched !== source) {
     await writeFile(file, patched);
