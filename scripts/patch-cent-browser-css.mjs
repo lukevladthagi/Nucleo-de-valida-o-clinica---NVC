@@ -28,7 +28,10 @@ function unwrapAllLayerBlocks(source) {
     }
   });
 
-  return root.toString();
+  return root
+    .toString()
+    .replace(/\s+in oklab/g, '')
+    .replace(/var\(--[\w-]+,\)\s*/g, '');
 }
 
 try {
