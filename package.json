@@ -12,6 +12,7 @@
     "eslint": "^9.27.0",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0",
+    "postcss": "^8.5.15",
     "typescript-eslint": "^8.33.0"
   },
   "packageManager": "yarn@4.12.0"
