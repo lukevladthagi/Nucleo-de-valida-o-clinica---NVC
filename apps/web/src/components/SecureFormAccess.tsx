@@ -55,20 +55,20 @@ export default function SecureFormAccess() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <Lock className="h-6 w-6 text-blue-600" />
+    <div className="nvc-access-page min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <Card className="nvc-access-card w-full max-w-md">
+        <CardHeader className="nvc-access-header text-center">
+          <div className="nvc-access-icon mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <Lock className="nvc-access-icon-svg h-6 w-6 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Acesso Restrito</CardTitle>
-          <CardDescription>
+          <CardTitle className="nvc-access-title text-2xl">Acesso Restrito</CardTitle>
+          <CardDescription className="nvc-access-description">
             Digite o código de acesso para acessar o formulário de solicitação
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+        <CardContent className="nvc-access-content">
+          <form onSubmit={handleSubmit} className="nvc-access-form space-y-4">
+            <div className="nvc-access-field space-y-2">
               <Label htmlFor="accessCode">Código de Acesso</Label>
               <Input
                 id="accessCode"
@@ -78,7 +78,7 @@ export default function SecureFormAccess() {
                 placeholder="Digite o código"
                 required
                 autoFocus
-                className="text-center text-lg tracking-wider"
+                className="nvc-access-input text-center text-lg tracking-wider"
               />
             </div>
 
@@ -89,12 +89,12 @@ export default function SecureFormAccess() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading || !accessCode}>
+            <Button type="submit" className="nvc-access-submit w-full" disabled={loading || !accessCode}>
               {loading ? "Validando..." : "Acessar Formulário"}
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t text-center text-sm text-gray-500">
+          <div className="nvc-access-footer mt-6 pt-6 border-t text-center text-sm text-gray-500">
             <p>Núcleo de Validação Clínica</p>
             <p className="text-xs mt-1">Protocolo Digital de Pré-Internação</p>
           </div>

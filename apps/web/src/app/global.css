@@ -272,3 +272,136 @@
     cursor: pointer;
   }
 }
+
+.nvc-access-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 50%, #eff6ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.nvc-access-card {
+  width: 100%;
+  max-width: 28rem;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #dfe7f2;
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 1.5rem 0;
+  overflow: hidden;
+}
+
+.nvc-access-header {
+  display: block;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.nvc-access-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  border-radius: 9999px;
+  background: #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nvc-access-icon-svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #2563eb;
+}
+
+.nvc-access-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.nvc-access-description {
+  max-width: 22rem;
+  margin: 0.5rem auto 0;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.nvc-access-content {
+  padding: 1.5rem 1.5rem 0;
+}
+
+.nvc-access-field {
+  margin-bottom: 1rem;
+}
+
+.nvc-access-field label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.nvc-access-input {
+  width: 100%;
+  height: 2.25rem;
+  box-sizing: border-box;
+  border: 1px solid #d7dee8;
+  border-radius: 9999px;
+  background: #f8fafc;
+  color: #334155;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  letter-spacing: 0.05em;
+  outline: none;
+}
+
+.nvc-access-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.nvc-access-submit {
+  width: 100%;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 9999px;
+  background: #8aa0bf;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.nvc-access-submit:disabled {
+  opacity: 1;
+}
+
+.nvc-access-footer {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.nvc-access-footer p {
+  margin: 0;
+}
+
+.nvc-access-footer p + p {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
