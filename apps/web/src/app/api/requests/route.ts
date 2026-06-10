@@ -67,8 +67,6 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
   `;
 
   const validationUrl = `${baseUrl}/validacao/${encodeURIComponent(protocol)}`;
-  const approveUrl = `${validationUrl}?decisao=aprovada`;
-  const denyUrl = `${validationUrl}?decisao=negada`;
   const priority = String(formData.priorityClassification || '').toUpperCase();
   const clinicalRisk = String(formData.clinicalRisk || '').toLowerCase();
   const clinicalSummary = truncateText(formData.clinicalPresentation, 2300);
@@ -94,6 +92,7 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
   let sent = 0;
 
   for (const validator of validators) {
+    const sentAt = new Date().toISOString();
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -106,8 +105,8 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
           reply_markup: {
             inline_keyboard: [
               [
-                { text: '✅ Aprovar', url: approveUrl },
-                { text: '❌ Negar', url: denyUrl },
+                { text: '✅ Aprovar', callback_data: `approve:${protocol}` },
+                { text: '❌ Negar', callback_data: `deny:${protocol}` },
               ],
               [{ text: '🌐 Avaliar no sistema', url: validationUrl }],
             ],
@@ -118,8 +117,28 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
       const result = await response.json().catch(() => ({}));
       if (response.ok && result.ok !== false) {
         sent += 1;
+        await sql`
+          INSERT INTO notification_log (
+            request_protocol, validator_id, channel, recipient, status,
+            sent_at, created_at, telegram_message_id
+          )
+          VALUES (
+            ${protocol}, ${validator.id}, 'telegram', ${String(validator.telegram_chat_id)}, 'sent',
+            ${sentAt}, ${sentAt}, ${String(result.result?.message_id || '')}
+          )
+        `;
         diagnostic.push({ validatorId: validator.id, validatorName: validator.name, ok: true });
       } else {
+        await sql`
+          INSERT INTO notification_log (
+            request_protocol, validator_id, channel, recipient, status,
+            error_message, sent_at, created_at
+          )
+          VALUES (
+            ${protocol}, ${validator.id}, 'telegram', ${String(validator.telegram_chat_id)}, 'failed',
+            ${result.description || 'Falha ao enviar Telegram'}, ${sentAt}, ${sentAt}
+          )
+        `;
         diagnostic.push({
           validatorId: validator.id,
           validatorName: validator.name,
@@ -135,6 +154,16 @@ async function notifyValidators(protocol: string, formData: any, baseUrl: string
         ok: false,
         message: error?.message || 'Erro desconhecido',
       });
+      await sql`
+        INSERT INTO notification_log (
+          request_protocol, validator_id, channel, recipient, status,
+          error_message, sent_at, created_at
+        )
+        VALUES (
+          ${protocol}, ${validator.id}, 'telegram', ${String(validator.telegram_chat_id)}, 'failed',
+          ${error?.message || 'Erro desconhecido'}, ${sentAt}, ${sentAt}
+        )
+      `;
     }
   }
 
